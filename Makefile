@@ -24,6 +24,7 @@ truncate-logs:
 	# ssh isucon-s2 "sudo truncate --size 0 /var/log/mysql/error.log"
 
 start-services:
+	sudo systemctl daemon-reload
 	# ssh isucon-s2 "sudo systemctl start mysql"
 	sudo systemctl start mysql
 	sudo systemctl start $(APPNAME)
