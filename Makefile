@@ -37,7 +37,8 @@ kataribe:
 	cat ~/kataribe-logs/$$timestamp.log | grep --after-context 20 "Top 20 Sort By Total"
 
 pprof: TIME=60
-pprof: PROF_FILE=~/pprof.samples.$(shell TZ=Asia/Tokyo date +"%H%M").$(shell git rev-parse HEAD | cut -c 1-8).pb.gz
+pprof: PROF_FILE=/tmp/pprof/pprof.samples.$(shell TZ=Asia/Tokyo date +"%H%M").$(shell git rev-parse HEAD | cut -c 1-8).pb.gz
 pprof:
+	@mkdir -p /tmp/pprof
 	curl -sSf "http://localhost:6060/debug/fgprof?seconds=$(TIME)" > $(PROF_FILE)
 	go tool pprof $(PROF_FILE)
