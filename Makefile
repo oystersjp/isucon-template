@@ -36,7 +36,7 @@ kataribe:
 	cat /tmp/last-access.log | kataribe -conf kataribe.toml > ~/kataribe-logs/$$timestamp.log
 	cat ~/kataribe-logs/$$timestamp.log | grep --after-context 20 "Top 20 Sort By Total"
 
-pprof: TIME=60
+pprof: TIME=90
 pprof: PROF_FILE=/tmp/pprof/pprof.samples.$(shell TZ=Asia/Tokyo date +"%H%M").$(shell git rev-parse HEAD | cut -c 1-8).pb.gz
 pprof:
 	@mkdir -p /tmp/pprof
