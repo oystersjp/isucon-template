@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -eu
 
 # Nginx設定ファイルパス（適宜変更してください）
 NGINX_CONF="/etc/nginx/nginx.conf"
@@ -12,6 +12,4 @@ sed -i '/access_log \/var\/log\/nginx\/access.log with_time;/s/^/# /' $NGINX_CON
 
 # Nginxの設定を再読み込み
 nginx -t && systemctl reload nginx
-
-echo "アクセスログを無効化しました。（コメントアウトしました）"
 

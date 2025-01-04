@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -eu
 
 # Nginx設定ファイルパス（適宜変更してください）
 NGINX_CONF="/etc/nginx/nginx.conf"
@@ -42,6 +42,3 @@ fi
 
 # Nginxの設定を再読み込み
 nginx -t && systemctl reload nginx
-
-echo "初期設定を完了しました。（デフォルトではアクセスログは無効化されています）"
-
