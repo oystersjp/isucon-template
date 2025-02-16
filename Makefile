@@ -1,8 +1,7 @@
 APPNAME := isuhoge-go.service
 
 .PHONY: *
-
-gogo: stop-services build truncate-logs start-services
+gogo: stop-services build logs/clear start-services
 
 stop-services:
 	sudo systemctl stop nginx
@@ -11,10 +10,15 @@ stop-services:
 	# ssh isucon-s2 "sudo systemctl stop mysql"
 
 build:
-	cd go && make
+	__FIXME__
+	# cd go && make
 	# cd go && go build -o isuhoge
 
-truncate-logs:
+logs: limit=10000
+logs:
+	journalctl -ex --since "$(shell systemctl status isuride-go.service | grep "Active:" | awk '{print $$6, $$7}')" -n $(limit)
+
+logs/clear:
 	sudo journalctl --vacuum-size=1K
 	sudo truncate --size 0 /var/log/nginx/access.log
 	sudo truncate --size 0 /var/log/nginx/error.log
@@ -37,9 +41,10 @@ kataribe:
 	cat /tmp/last-access.log | kataribe -conf kataribe.toml > ~/kataribe-logs/$$timestamp.log
 	cat ~/kataribe-logs/$$timestamp.log | grep --after-context 20 "Top 20 Sort By Total"
 
-pprof: TIME=90
-pprof: PROF_FILE=/tmp/pprof/pprof.samples.$(shell TZ=Asia/Tokyo date +"%H%M").$(shell git rev-parse HEAD | cut -c 1-8).pb.gz
+pprof: time=90
+pprof: prof_file=/tmp/pprof/pprof.samples.$(shell TZ=Asia/Tokyo date +"%H%M").$(shell git rev-parse HEAD | cut -c 1-8).pb.gz
 pprof:
 	@mkdir -p /tmp/pprof
-	curl -sSf "http://localhost:6060/debug/fgprof?seconds=$(TIME)" > $(PROF_FILE)
-	go tool pprof $(PROF_FILE)
+	curl -sSf "http://localhost:6060/debug/fgprof?seconds=$(time)" > $(prof_file)
+	go tool pprof $(prof_file)
+
