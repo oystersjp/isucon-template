@@ -23,7 +23,7 @@ logs/error:
 	$(MAKE) logs opts='--grep "(error|panic|- 500)" --no-pager'
 
 logs/clear:
-	sudo journalctl --vacuum-size=1K
+	sudo journalctl --rotate && sudo journalctl --vacuum-size=1K
 	sudo truncate --size 0 /var/log/nginx/access.log
 	sudo truncate --size 0 /var/log/nginx/error.log
 	sudo truncate --size 0 /var/log/mysql/mysql-slow.log && sudo chmod 666 /var/log/mysql/mysql-slow.log
