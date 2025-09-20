@@ -74,12 +74,26 @@ sudo systemctl restart mysql
 
 #### nginx のアクセスログを pprotein/alp 向けに整える
 
-- `nginx` のアクセスログ書式を `alp` が解析しやすい形に揃えます。例として `/etc/nginx/nginx.conf` の `log_format` を以下に置き換えます:
+- `nginx` のアクセスログ書式を `alp` が解析しやすい LTSV 形式に揃えます。例として `/etc/nginx/nginx.conf` の `log_format` を以下に置き換えます:
 
   ```nginx
-  log_format alp '$remote_addr\t$host\t$request\t$status\t$request_time\t$body_bytes_sent\t'
-                  '$http_referer\t$http_user_agent\t$http_x_forwarded_for';
-  access_log /var/log/nginx/access.log alp;
+  log_format ltsv "time:$time_local"
+                  "\thost:$remote_addr"
+                  "\tforwardedfor:$http_x_forwarded_for"
+                  "\treq:$request"
+                  "\tstatus:$status"
+                  "\tmethod:$request_method"
+                  "\turi:$request_uri"
+                  "\tsize:$body_bytes_sent"
+                  "\treferer:$http_referer"
+                  "\tua:$http_user_agent"
+                  "\treqtime:$request_time"
+                  "\tcache:$upstream_http_x_cache"
+                  "\truntime:$upstream_http_x_runtime"
+                  "\tapptime:$upstream_response_time"
+                  "\tvhost:$host";
+
+  access_log  /var/log/nginx/access.log ltsv;
   ```
 
 - 設定変更後は `sudo nginx -t` で構文を確認し、`sudo systemctl reload nginx` で反映します。
