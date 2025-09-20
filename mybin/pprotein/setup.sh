@@ -1,26 +1,34 @@
 #!/bin/sh -eu
 #
 # setup.sh
-#   ISUCON競技サーバでpprotein-agentを導入し、pproteinサーバから
-#   pprof/slowlog/httplogを収集できる状態に整えます。
+#   ISUCON競技サーバでpproteinが参照する各種ツールとpprotein-agentを
+#   導入し、pproteinサーバからpprof/slowlog/httplogを収集できる状態を整えます。
 # 使い方:
-#   ./setup.sh install    # ダウンロード・systemd登録・サービス起動
+#   ./setup.sh install    # 依存ツール導入・バイナリ配置・systemd登録
 #   ./setup.sh uninstall  # サービス停止とクリーンアップ
 # 環境変数:
-#   PPROTEIN_VERSION           (既定: 1.2.4)
-#   PPROTEIN_ARCH              (既定: linux_amd64)
-#   INSTALL_DIR                (既定: /home/isucon)
-#   SERVICE_USER               (既定: root)
-#   SERVICE_NAME               (既定: pprotein-agent)
-#   BIND_PORT                  (既定: 19000)
-#   PPROTEIN_HTTPLOG           (既定: /var/log/nginx/access.log)
-#   PPROTEIN_SLOWLOG           (既定: /var/log/mysql/mysql-slow.log)
-#   PPROTEIN_GIT_REPOSITORY    (既定: このリポジトリのルート)
+#   PPROTEIN_VERSION        (既定: 1.2.4)
+#   PPROTEIN_ARCH           (既定: linux_amd64)
+#   SLP_VERSION             (既定: 0.2.1)
+#   SLP_ARCH                (既定: linux_amd64)
+#   ALP_VERSION             (既定: 1.0.21)
+#   ALP_ARCH                (既定: linux_amd64)
+#   INSTALL_DIR             (既定: /home/isucon)
+#   SERVICE_USER            (既定: root)
+#   SERVICE_NAME            (既定: pprotein-agent)
+#   BIND_PORT               (既定: 19000)
+#   PPROTEIN_HTTPLOG        (既定: /var/log/nginx/access.log)
+#   PPROTEIN_SLOWLOG        (既定: /var/log/mysql/mysql-slow.log)
+#   PPROTEIN_GIT_REPOSITORY (既定: このリポジトリのルート)
 # 参考: https://zenn.dev/team_soda/articles/20231206000000
 
 COMMAND=${1:-install}
 PPROTEIN_VERSION=${PPROTEIN_VERSION:-1.2.4}
 PPROTEIN_ARCH=${PPROTEIN_ARCH:-linux_amd64}
+SLP_VERSION=${SLP_VERSION:-0.2.1}
+SLP_ARCH=${SLP_ARCH:-linux_amd64}
+ALP_VERSION=${ALP_VERSION:-1.0.21}
+ALP_ARCH=${ALP_ARCH:-linux_amd64}
 INSTALL_DIR=${INSTALL_DIR:-/home/isucon}
 SERVICE_USER=${SERVICE_USER:-root}
 SERVICE_NAME=${SERVICE_NAME:-pprotein-agent}
@@ -30,6 +38,8 @@ PPROTEIN_SLOWLOG=${PPROTEIN_SLOWLOG:-/var/log/mysql/mysql-slow.log}
 REPO_ROOT=${PPROTEIN_GIT_REPOSITORY:-$(cd "$(dirname "$0")/../.." && pwd)}
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 DOWNLOAD_URL="https://github.com/kaz/pprotein/releases/download/v${PPROTEIN_VERSION}/pprotein_${PPROTEIN_VERSION}_${PPROTEIN_ARCH}.tar.gz"
+SLP_URL="https://github.com/tkuchiki/slp/releases/download/v${SLP_VERSION}/slp_${SLP_VERSION}_${SLP_ARCH}.tar.gz"
+ALP_URL="https://github.com/tkuchiki/alp/releases/download/v${ALP_VERSION}/alp_${ALP_VERSION}_${ALP_ARCH}.tar.gz"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -38,21 +48,79 @@ need_cmd() {
   fi
 }
 
-download_release() {
-  tmpdir=$(mktemp -d)
-  trap 'rm -rf "${tmpdir}"' EXIT
-  archive="${tmpdir}/pprotein.tar.gz"
+fetch() {
+  url="$1"
+  dest="$2"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "${DOWNLOAD_URL}" -o "${archive}"
+    curl -fsSL "$url" -o "$dest"
   else
     need_cmd wget
-    wget -q "${DOWNLOAD_URL}" -O "${archive}"
+    wget -q "$url" -O "$dest"
   fi
-  tar -xzf "${archive}" -C "${tmpdir}"
-  sudo install -m 0755 "${tmpdir}/pprotein-agent" "${INSTALL_DIR}/pprotein-agent"
-  if [ -f "${tmpdir}/pprotein" ]; then
-    sudo install -m 0755 "${tmpdir}/pprotein" "${INSTALL_DIR}/pprotein"
+}
+
+apt_install() {
+  if command -v apt-get >/dev/null 2>&1; then
+    if [ -z "${APT_UPDATED:-}" ]; then
+      sudo apt-get update -y
+      APT_UPDATED=1
+    fi
+    sudo apt-get install -y "$@"
+  else
+    echo "[WARN] apt-get が見つからないため $* のインストールをスキップしました" >&2
   fi
+}
+
+install_graphviz_tools() {
+  if command -v dot >/dev/null 2>&1 && command -v gv >/dev/null 2>&1; then
+    return
+  fi
+  apt_install graphviz gv
+}
+
+install_slp() {
+  if command -v slp >/dev/null 2>&1; then
+    return
+  fi
+  tmp=$(mktemp -d)
+  (
+    set -e
+    trap 'rm -rf "$tmp"' EXIT
+    archive="${tmp}/slp.tar.gz"
+    fetch "${SLP_URL}" "${archive}"
+    tar -xzf "${archive}" -C "${tmp}"
+    sudo install -m 0755 "${tmp}/slp" /usr/local/bin/slp
+  )
+}
+
+install_alp() {
+  if command -v alp >/dev/null 2>&1; then
+    return
+  fi
+  tmp=$(mktemp -d)
+  (
+    set -e
+    trap 'rm -rf "$tmp"' EXIT
+    archive="${tmp}/alp.tar.gz"
+    fetch "${ALP_URL}" "${archive}"
+    tar -xzf "${archive}" -C "${tmp}"
+    sudo install -m 0755 "${tmp}/alp" /usr/local/bin/alp
+  )
+}
+
+download_release() {
+  tmp=$(mktemp -d)
+  (
+    set -e
+    trap 'rm -rf "$tmp"' EXIT
+    archive="${tmp}/pprotein.tar.gz"
+    fetch "${DOWNLOAD_URL}" "${archive}"
+    tar -xzf "${archive}" -C "${tmp}"
+    sudo install -m 0755 "${tmp}/pprotein-agent" "${INSTALL_DIR}/pprotein-agent"
+    if [ -f "${tmp}/pprotein" ]; then
+      sudo install -m 0755 "${tmp}/pprotein" "${INSTALL_DIR}/pprotein"
+    fi
+  )
 }
 
 ensure_permissions() {
@@ -110,14 +178,22 @@ remove_files() {
   sudo rm -f "${INSTALL_DIR}/pprotein"
 }
 
+install_dependencies() {
+  need_cmd tar
+  need_cmd sudo
+  install_graphviz_tools
+  install_slp
+  install_alp
+}
+
 case "${COMMAND}" in
   install)
-    need_cmd tar
     if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
       echo "[ERROR] curl または wget を用意してください" >&2
       exit 1
     fi
     sudo mkdir -p "${INSTALL_DIR}"
+    install_dependencies
     download_release
     ensure_permissions
     write_service
