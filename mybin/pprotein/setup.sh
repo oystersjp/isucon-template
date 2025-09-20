@@ -9,10 +9,6 @@
 # 環境変数:
 #   PPROTEIN_VERSION        (既定: 1.2.4)
 #   PPROTEIN_ARCH           (既定: linux_amd64)
-#   SLP_VERSION             (既定: 0.2.1)
-#   SLP_ARCH                (既定: linux_amd64)
-#   ALP_VERSION             (既定: 1.0.21)
-#   ALP_ARCH                (既定: linux_amd64)
 #   INSTALL_DIR             (既定: /home/isucon)
 #   SERVICE_USER            (既定: root)
 #   SERVICE_NAME            (既定: pprotein-agent)
@@ -25,10 +21,6 @@
 COMMAND=${1:-install}
 PPROTEIN_VERSION=${PPROTEIN_VERSION:-1.2.4}
 PPROTEIN_ARCH=${PPROTEIN_ARCH:-linux_amd64}
-SLP_VERSION=${SLP_VERSION:-0.2.1}
-SLP_ARCH=${SLP_ARCH:-linux_amd64}
-ALP_VERSION=${ALP_VERSION:-1.0.21}
-ALP_ARCH=${ALP_ARCH:-linux_amd64}
 INSTALL_DIR=${INSTALL_DIR:-/home/isucon}
 SERVICE_USER=${SERVICE_USER:-root}
 SERVICE_NAME=${SERVICE_NAME:-pprotein-agent}
@@ -38,8 +30,6 @@ PPROTEIN_SLOWLOG=${PPROTEIN_SLOWLOG:-/var/log/mysql/mysql-slow.log}
 REPO_ROOT=${PPROTEIN_GIT_REPOSITORY:-$(cd "$(dirname "$0")/../.." && pwd)}
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 DOWNLOAD_URL="https://github.com/kaz/pprotein/releases/download/v${PPROTEIN_VERSION}/pprotein_${PPROTEIN_VERSION}_${PPROTEIN_ARCH}.tar.gz"
-SLP_URL="https://github.com/tkuchiki/slp/releases/download/v${SLP_VERSION}/slp_${SLP_VERSION}_${SLP_ARCH}.tar.gz"
-ALP_URL="https://github.com/tkuchiki/alp/releases/download/v${ALP_VERSION}/alp_${ALP_VERSION}_${ALP_ARCH}.tar.gz"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -76,36 +66,6 @@ install_graphviz_tools() {
     return
   fi
   apt_install graphviz gv
-}
-
-install_slp() {
-  if command -v slp >/dev/null 2>&1; then
-    return
-  fi
-  tmp=$(mktemp -d)
-  (
-    set -e
-    trap 'rm -rf "$tmp"' EXIT
-    archive="${tmp}/slp.tar.gz"
-    fetch "${SLP_URL}" "${archive}"
-    tar -xzf "${archive}" -C "${tmp}"
-    sudo install -m 0755 "${tmp}/slp" /usr/local/bin/slp
-  )
-}
-
-install_alp() {
-  if command -v alp >/dev/null 2>&1; then
-    return
-  fi
-  tmp=$(mktemp -d)
-  (
-    set -e
-    trap 'rm -rf "$tmp"' EXIT
-    archive="${tmp}/alp.tar.gz"
-    fetch "${ALP_URL}" "${archive}"
-    tar -xzf "${archive}" -C "${tmp}"
-    sudo install -m 0755 "${tmp}/alp" /usr/local/bin/alp
-  )
 }
 
 download_release() {
@@ -182,8 +142,6 @@ install_dependencies() {
   need_cmd tar
   need_cmd sudo
   install_graphviz_tools
-  install_slp
-  install_alp
 }
 
 case "${COMMAND}" in
