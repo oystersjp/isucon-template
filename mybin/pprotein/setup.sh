@@ -84,13 +84,16 @@ download_release() {
 }
 
 ensure_permissions() {
+  need_cmd setfacl
   if [ -f "${PPROTEIN_SLOWLOG}" ]; then
-    sudo chmod +r "${PPROTEIN_SLOWLOG}"
+    sudo setfacl -m "u:${SERVICE_USER}:r" "${PPROTEIN_SLOWLOG}"
     slowlog_dir=$(dirname "${PPROTEIN_SLOWLOG}")
-    sudo chmod +rx "${slowlog_dir}"
+    sudo setfacl -m "u:${SERVICE_USER}:rx" "${slowlog_dir}"
   fi
   if [ -f "${PPROTEIN_HTTPLOG}" ]; then
-    sudo chmod +r "${PPROTEIN_HTTPLOG}"
+    sudo setfacl -m "u:${SERVICE_USER}:r" "${PPROTEIN_HTTPLOG}"
+    httplog_dir=$(dirname "${PPROTEIN_HTTPLOG}")
+    sudo setfacl -m "u:${SERVICE_USER}:rx" "${httplog_dir}"
   fi
 }
 
@@ -142,6 +145,9 @@ install_dependencies() {
   need_cmd tar
   need_cmd sudo
   install_graphviz_tools
+  if ! command -v setfacl >/dev/null 2>&1; then
+    apt_install acl
+  fi
 }
 
 case "${COMMAND}" in

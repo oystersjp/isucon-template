@@ -12,6 +12,7 @@ sudo mybin/pprotein/setup.sh install
 ```
 
 - graphviz/gv（pprof グラフ描画用）と pprotein 本体/agent を取得し、systemd で `pprotein-agent` を起動します。`apt-get` が利用できない環境では graphviz/gv の導入はスキップされます。
+- ログへのアクセス権は `setfacl` で付与します。無い場合は `sudo apt-get install acl` などで導入してください。
 - nginx / MySQL のログパスが異なる場合は、環境変数 `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG` を指定してください。バージョンやアーキテクチャも環境変数で上書き可能です。
 - 後片付けは `sudo mybin/pprotein/setup.sh uninstall` で行えます。
 
