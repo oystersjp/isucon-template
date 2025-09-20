@@ -31,6 +31,15 @@ REPO_ROOT=${PPROTEIN_GIT_REPOSITORY:-$(cd "$(dirname "$0")/../.." && pwd)}
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 DOWNLOAD_URL="https://github.com/kaz/pprotein/releases/download/v${PPROTEIN_VERSION}/pprotein_${PPROTEIN_VERSION}_${PPROTEIN_ARCH}.tar.gz"
 
+if id "${SERVICE_USER}" >/dev/null 2>&1; then
+  SERVICE_GROUP=$(id -gn "${SERVICE_USER}")
+  SERVICE_OWNER_AVAILABLE=1
+else
+  SERVICE_GROUP="${SERVICE_USER}"
+  SERVICE_OWNER_AVAILABLE=
+  echo "[WARN] service user ${SERVICE_USER} が見つかりません。所有権の調整をスキップします" >&2
+fi
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "[ERROR] $1 が見つかりません" >&2
@@ -53,7 +62,7 @@ apt_install() {
   if command -v apt-get >/dev/null 2>&1; then
     if [ -z "${APT_UPDATED:-}" ]; then
       sudo apt-get update -y
-      APT_UPDATED=1
+      export APT_UPDATED=1
     fi
     sudo apt-get install -y "$@"
   else
@@ -76,9 +85,9 @@ download_release() {
     archive="${tmp}/pprotein.tar.gz"
     fetch "${DOWNLOAD_URL}" "${archive}"
     tar -xzf "${archive}" -C "${tmp}"
-    sudo install -m 0755 "${tmp}/pprotein-agent" "${INSTALL_DIR}/pprotein-agent"
+    install_binary "${tmp}/pprotein-agent" "${INSTALL_DIR}/pprotein-agent"
     if [ -f "${tmp}/pprotein" ]; then
-      sudo install -m 0755 "${tmp}/pprotein" "${INSTALL_DIR}/pprotein"
+      install_binary "${tmp}/pprotein" "${INSTALL_DIR}/pprotein"
     fi
   )
 }
@@ -95,6 +104,24 @@ ensure_permissions() {
     httplog_dir=$(dirname "${PPROTEIN_HTTPLOG}")
     sudo setfacl -m "u:${SERVICE_USER}:rx" "${httplog_dir}"
   fi
+}
+
+install_binary() {
+  src="$1"
+  dest="$2"
+  if [ -n "${SERVICE_OWNER_AVAILABLE:-}" ]; then
+    sudo install -m 0755 -o "${SERVICE_USER}" -g "${SERVICE_GROUP}" "${src}" "${dest}"
+  else
+    sudo install -m 0755 "${src}" "${dest}"
+  fi
+}
+
+prepare_install_dir() {
+  sudo mkdir -p "${INSTALL_DIR}"
+  if [ -n "${SERVICE_OWNER_AVAILABLE:-}" ]; then
+    sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}"
+  fi
+  sudo chmod 0755 "${INSTALL_DIR}"
 }
 
 write_service() {
@@ -156,7 +183,7 @@ case "${COMMAND}" in
       echo "[ERROR] curl または wget を用意してください" >&2
       exit 1
     fi
-    sudo mkdir -p "${INSTALL_DIR}"
+    prepare_install_dir
     install_dependencies
     download_release
     ensure_permissions
