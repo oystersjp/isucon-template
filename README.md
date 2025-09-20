@@ -15,6 +15,76 @@ sudo mybin/pprotein/setup.sh install
 - nginx / MySQL のログパスが異なる場合は、環境変数 `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG` を指定してください。バージョンやアーキテクチャも環境変数で上書き可能です。
 - 後片付けは `sudo mybin/pprotein/setup.sh uninstall` で行えます。
 
+#### MySQL のスロークエリログを有効化
+
+```
+cd /path/to/isucon-template
+./mybin/mysql/mysql_slow_query.sh init   # 設定ファイルに slow_query_log エントリを追加
+./mybin/mysql/mysql_slow_query.sh on     # slow_query_log = ON を適用
+sudo systemctl restart mysql
+```
+
+- ログファイルはデフォルトで `/var/log/mysql/mysql-slow.log` を想定しています。別パスを使う場合は `mysql_slow_query.sh` と `setup.sh` の環境変数を合わせて変更してください。
+- 計測終了後は `./mybin/mysql/mysql_slow_query.sh off` で元に戻してください。
+
+#### Go アプリケーションへの pprotein ミドルウェア追加
+
+- Web フレームワークに応じて `github.com/kaz/pprotein/pkg/middleware/...` を導入し、ハンドラにミドルウェアを差し込みます。例（Echo の場合）:
+
+  ```go
+  import (
+    ppMiddleware "github.com/kaz/pprotein/pkg/middleware/echo"
+  )
+
+  e := echo.New()
+  e.Use(ppMiddleware.New(ppMiddleware.Config{
+    Endpoint: "http://127.0.0.1:19000",
+  }))
+  ```
+
+- ルータに差し込むだけでリクエスト統計が pprotein-agent 経由で収集されます。詳細は公式ドキュメントを参照してください。
+
+#### デプロイ／ベンチ後に webhook を叩くコード追加
+
+- コード更新やベンチマーク完了に合わせて、pprotein サーバにスナップショット通知を送るための webhook を呼び出します。例:
+
+  ```go
+  import (
+    "log"
+    "net/http"
+    "strings"
+  )
+
+  payload := strings.NewReader("{\"repository\":\"isucon\",\"branch\":\"main\"}")
+  req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:19000/webhook", payload)
+  if err != nil {
+    log.Printf("webhook request build failed: %v", err)
+    return
+  }
+  req.Header.Set("Content-Type", "application/json")
+  resp, err := http.DefaultClient.Do(req)
+  if err != nil {
+    log.Printf("webhook call failed: %v", err)
+    return
+  }
+  resp.Body.Close()
+  ```
+
+- webhook のパスや JSON フィールドは pprotein の設定に合わせて調整してください。
+
+#### nginx のアクセスログを pprotein/alp 向けに整える
+
+- `nginx` のアクセスログ書式を `alp` が解析しやすい形に揃えます。例として `/etc/nginx/nginx.conf` の `log_format` を以下に置き換えます:
+
+  ```nginx
+  log_format alp '$remote_addr\t$host\t$request\t$status\t$request_time\t$body_bytes_sent\t'
+                  '$http_referer\t$http_user_agent\t$http_x_forwarded_for';
+  access_log /var/log/nginx/access.log alp;
+  ```
+
+- 設定変更後は `sudo nginx -t` で構文を確認し、`sudo systemctl reload nginx` で反映します。
+- 既存ログを温存したい場合は別ファイルに退避してから設定を切り替えます。
+
 ### pprotein サーバ（可視化・解析サーバ）
 
 - alp（アクセスログ解析）と slp（スロークエリ解析）は pprotein サーバで管理します。例:
