@@ -38,17 +38,3 @@ start-services:
 	sudo systemctl start $(APPNAME)
 	sudo systemctl start nginx
 
-kataribe: timestamp=$(shell TZ=Asia/Tokyo date "+%Y%m%d-%H%M%S")
-kataribe:
-	mkdir -p ~/kataribe-logs
-	sudo cp /var/log/nginx/access.log /tmp/last-access.log && sudo chmod 0666 /tmp/last-access.log
-	cat /tmp/last-access.log | kataribe -conf kataribe.toml > ~/kataribe-logs/$(timestamp).log
-	cat ~/kataribe-logs/$(timestamp).log | grep --after-context 20 "Top 20 Sort By Total"
-
-pprof: time=90
-pprof: prof_file=/tmp/pprof/pprof.samples.$(shell TZ=Asia/Tokyo date +"%H%M").$(shell git rev-parse HEAD | cut -c 1-8).pb.gz
-pprof:
-	@mkdir -p /tmp/pprof
-	curl -sSf "http://localhost:6060/debug/fgprof?seconds=$(time)" > $(prof_file)
-	go tool pprof $(prof_file)
-
