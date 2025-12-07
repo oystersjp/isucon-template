@@ -92,6 +92,28 @@ download_release() {
   )
 }
 
+install_mcp_server() {
+  script_dir=$(cd "$(dirname "$0")" && pwd)
+  mcp_binary="${script_dir}/pprotein-mcp-server"
+  mcp_service="${script_dir}/mcp.service"
+
+  if [ ! -f "${mcp_binary}" ]; then
+    echo "[WARN] pprotein-mcp-server バイナリが見つかりません: ${mcp_binary}" >&2
+    return
+  fi
+
+  install_binary "${mcp_binary}" "${INSTALL_DIR}/pprotein-mcp-server"
+
+  if [ -f "${mcp_service}" ]; then
+    sudo cp "${mcp_service}" /etc/systemd/system/mcp.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable mcp.service
+    sudo systemctl restart mcp.service
+  else
+    echo "[WARN] mcp.service ファイルが見つかりません: ${mcp_service}" >&2
+  fi
+}
+
 ensure_permissions() {
   need_cmd setfacl
   if [ -f "${PPROTEIN_SLOWLOG}" ]; then
@@ -163,9 +185,15 @@ stop_service() {
 
 remove_files() {
   sudo rm -f "${SERVICE_FILE}"
+  if systemctl list-unit-files | grep -q "^mcp.service"; then
+    sudo systemctl stop mcp.service || true
+    sudo systemctl disable mcp.service || true
+  fi
+  sudo rm -f /etc/systemd/system/mcp.service
   sudo systemctl daemon-reload
   sudo rm -f "${INSTALL_DIR}/pprotein-agent"
   sudo rm -f "${INSTALL_DIR}/pprotein"
+  sudo rm -f "${INSTALL_DIR}/pprotein-mcp-server"
 }
 
 install_dependencies() {
@@ -186,6 +214,7 @@ case "${COMMAND}" in
     prepare_install_dir
     install_dependencies
     download_release
+    install_mcp_server
     ensure_permissions
     write_service
     start_service
