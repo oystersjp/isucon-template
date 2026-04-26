@@ -11,11 +11,24 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"strconv"
 	"time"
 )
 
 const defaultBenchEndDelaySec = 60
+
+func benchNotifyEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("BENCH_NOTIFY_ENABLED")))
+	switch v {
+	case "":
+		return true
+	case "false", "0", "off", "no":
+		return false
+	default:
+		return true
+	}
+}
 
 func benchEndDelaySec() int {
 	v := os.Getenv("BENCH_END_NOTIFY_AFTER_SEC")
@@ -68,6 +81,11 @@ func notifySlack(text string) {
 }
 
 func notifyBenchStartAndEndHint() {
+	if !benchNotifyEnabled() {
+		log.Printf("skip slack notify: BENCH_NOTIFY_ENABLED is false")
+		return
+	}
+
 	host := os.Getenv("HOSTNAME")
 	now := time.Now().Format(time.RFC3339)
 	delaySec := benchEndDelaySec()
