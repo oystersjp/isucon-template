@@ -1,5 +1,21 @@
 # Repository Guidelines
 
+## Agent Instructions
+This repository is an ISUCON Go application. The implementation may be aggressively refactored, but the public HTTP API interface must remain compatible.
+
+For refactoring safety, prefer characterization tests over ideal specification tests.
+
+When creating regression tests:
+- Test through public HTTP APIs.
+- Do not test private or internal functions directly.
+- Preserve current observable behavior.
+- Use Go `testing` and `net/http/httptest`.
+- Use table-driven tests.
+- Use DB fixtures and golden files where appropriate.
+- Normalize unstable values such as timestamps, generated IDs, session IDs, random tokens, and generated UUIDs.
+- Verify DB side effects for mutation APIs.
+- Prioritize benchmark-critical endpoints, authentication, authorization, aggregation, ranking, sorting, and pagination.
+
 ## Project Structure & Module Organization
 This template starts lean so you can drop service code in quickly. Add your application modules at the repository root (for example `webapp/go` or `infra/ansible`) and keep operational tooling inside `mybin/`. Follow the existing `mybin/mysql/mysql_slow_query.sh` layout when adding helpers—group them by service and document usage in the header. Keep top-level docs (`README.md`, `AGENTS.md`) current so new teammates can orient fast.
 
