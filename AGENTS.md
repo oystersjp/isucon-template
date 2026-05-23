@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This template starts lean so you can drop service code in quickly. Add your application modules at the repository root (for example `webapp/go` or `infra/ansible`) and keep operational tooling inside `mybin/`. Follow the existing `mybin/mysql/mysql_slow_query.sh` layout when adding helpers—group them by service and document usage in the header. Keep top-level docs (`README.md`, `AGENTS.md`) current so new teammates can orient fast.
+This template starts lean so you can drop service code in quickly. Add your application modules at the repository root (for example `webapp/go` or `infra/ansible`) and keep operational tooling inside `mybin/`. Follow the existing `mybin/mysql/mysql_slow_query.sh` layout when adding helpers—group them by service and document usage in the header. Middleware configs live under `infra/`. At competition start run `make bootstrap-infra` (discover → download detected components → commit). Use `make deploy-infra` to push changes back. Scripts live in `mybin/infra/`. Keep top-level docs (`README.md`, `AGENTS.md`) current so new teammates can orient fast.
 
 ## Build, Test, and Development Commands
 Surface repeatable workflows as soon as a service lands. Use the native runner inside each service directory (`go test ./...`, `npm run build`, etc.) and record the exact command in a local README. The provided database helper toggles slow-query logging: run `./mybin/mysql/mysql_slow_query.sh init` once to seed config, then `... on` / `... off` during profiling. When workflows span services, add a `Makefile` target (`make bench`, `make setup`) so CI or on-call engineers can replay them verbatim.

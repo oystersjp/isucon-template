@@ -1,0 +1,3 @@
+# デプロイ先サーバ一覧（1行1ホスト）
+# cp infra/servers.txt.example infra/servers.txt して編集してください
+isucon-1

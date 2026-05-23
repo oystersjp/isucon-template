@@ -1,4 +1,12 @@
 APPNAME := isuhoge-go.service
+APP_NAME := isuhoge-go
+
+# infra: ミドルウェア設定の Git 管理
+SSH_USER ?= isucon
+ISUCON_HOST ?=
+NGINX_HOST ?=
+MYSQL_HOST ?=
+WEBAPP_HOST ?=
 
 .PHONY: *
 gogo: stop-services build logs/clear start-services
@@ -37,4 +45,45 @@ start-services:
 	sudo systemctl start mysql
 	sudo systemctl start $(APPNAME)
 	sudo systemctl start nginx
+
+# --- infra: ミドルウェア設定ファイルの download / deploy ---
+
+# 大会開始直後: 何が動いているか不明なときはここから
+discover-infra:
+	./mybin/infra/discover.sh
+
+bootstrap-infra: discover-infra download-detected
+	@echo "bootstrap 完了。infra/INVENTORY.md を確認して git add / commit してください"
+
+download-detected:
+	./mybin/infra/download.sh detected
+
+deploy-detected:
+	./mybin/infra/deploy.sh detected
+
+download-nginx:
+	./mybin/infra/download.sh nginx
+
+download-mysql:
+	./mybin/infra/download.sh mysql
+
+download-systemd:
+	./mybin/infra/download.sh systemd
+
+download-infra: download-detected
+
+download-infra-known: download-nginx download-mysql download-systemd
+
+deploy-nginx:
+	./mybin/infra/deploy.sh nginx
+
+deploy-mysql:
+	./mybin/infra/deploy.sh mysql
+
+deploy-systemd:
+	./mybin/infra/deploy.sh systemd
+
+deploy-infra: deploy-detected
+
+deploy-infra-known: deploy-nginx deploy-mysql deploy-systemd
 

@@ -1,5 +1,65 @@
 # isucon-template
 
+## ミドルウェア設定の Git 管理
+
+大会開始直後は「何が動いているかわからない」ことが多いので、**先に棚卸し → 検出されたものだけ Git 取り込み**する流れを推奨します。
+
+```
+infra/
+  INVENTORY.md              # 稼働ミドルウェア・ポート・設定パス一覧（人が読む）
+  .discover-components      # 検出結果（機械可読）
+  nginx/ mysql/ redis/ ...  # 取り込んだ設定
+  systemd/system/           # カスタム .service 一式
+```
+
+### 大会開始直後（おすすめ）
+
+```sh
+cd /path/to/isucon-template
+
+# 1. 棚卸し（何が動いているか一覧化）
+make discover-infra
+# または SSH: make discover-infra ISUCON_HOST=isucon-1
+
+# 2. 棚卸し結果を見る
+cat infra/INVENTORY.md
+
+# 3. 検出されたミドルウェアの設定を一括取り込み → すぐ git commit
+make bootstrap-infra
+git add infra/
+git commit -m "chore: bootstrap infra from competition servers"
+```
+
+`bootstrap-infra` = `discover-infra` + `download-detected` です。nginx / MySQL / Redis / memcached / PHP / sysctl と、`/etc/systemd/system` のカスタムユニットをまとめて取り込みます。
+
+### 構成がわかっているとき
+
+```sh
+make download-infra-known ISUCON_HOST=isucon-1
+make deploy-infra-known ISUCON_HOST=isucon-1
+```
+
+`APP_NAME`（Makefile）をアプリの systemd ユニット名に合わせてから使います。
+
+### 設定の反映
+
+```sh
+make deploy-infra          # .discover-components ベース
+# 個別: deploy-nginx / deploy-mysql / deploy-redis など
+```
+
+- nginx: `nginx -t` 後に reload
+- mysql: restart（mariadb も試行）
+- systemd: 取り込んだ `.service` を daemon-reload
+
+### etckeeper との使い分け
+
+| 状況 | おすすめ |
+|------|----------|
+| 何が動いているか不明 | `make bootstrap-infra`（今回の方式） |
+| チームで PR・複数台デプロイ | `infra/` + `make deploy-detected` |
+| 1台の `/etc` 変更履歴だけ欲しい | etckeeper（補助的） |
+
 ## pprotein セットアップ
 
 pprotein サーバは別途用意済みです。計測対象サーバと pprotein サーバで必要な作業を以下にまとめます。

@@ -1,0 +1,4 @@
+# MySQL のファイルディスクリプタ上限を引き上げる例
+# 本番反映時は limits.conf にリネームして deploy してください
+[Service]
+LimitNOFILE=65535
