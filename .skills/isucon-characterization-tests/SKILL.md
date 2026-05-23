@@ -5,77 +5,77 @@ description: Create Go characterization tests for ISUCON apps to detect regressi
 
 # ISUCON Go Characterization Tests
 
-## Goal
+## 目的
 
-Create tests that preserve the current observable behavior of the application before refactoring.
+アプリケーションの現在の振る舞いを保持するテストを作成する。
 
-The purpose is not to define an ideal specification. The current implementation behavior is the source of truth unless the user explicitly provides a different specification.
+目的は理想仕様を定義することではない。ユーザーが別の仕様を明示しない限り、現在の実装の挙動が正（source of truth）である。
 
-## Scope
+## スコープ
 
-Test public HTTP API behavior through the router or handler.
+router または handler 経由で、公開 HTTP API の挙動をテストする。
 
-Prefer:
+推奨:
 - Go `testing`
 - `net/http/httptest`
 - table-driven tests
 - DB fixtures
 - golden files
-- helper functions for requests, login, DB reset, and JSON comparison
+- リクエスト、login、DB reset、JSON 比較用の helper 関数
 
-Avoid:
-- Testing private or internal functions directly
-- Coupling tests to SQL structure, cache implementation, private helpers, or package-internal details
-- Guessing expected values that cannot be inferred from the current implementation
+避けること:
+- private または internal 関数を直接テストすること
+- SQL 構造、cache 実装、private helper、package 内部の詳細にテストを結合すること
+- 現在の実装から推論できない expected value を推測すること
 
-## Workflow
+## ワークフロー
 
-1. Inspect routes, handlers, middleware, DB schema, fixtures, and existing tests.
-2. List public APIs.
-3. Identify high-value regression targets:
+1. routes、handlers、middleware、DB schema、fixtures、既存テストを調査する。
+2. 公開 API を一覧化する。
+3. 回帰検知の価値が高い箇所を特定する:
    - login/session
    - authorization
-   - create/update/delete side effects
-   - list/detail endpoints
+   - create/update/delete の side effect
+   - list/detail エンドポイント
    - ranking/aggregation
-   - sorting and pagination
-   - error responses
-   - boundary values
-4. Propose test cases before editing code.
-5. Implement test helpers:
+   - sorting と pagination
+   - error response
+   - 境界値
+4. コード編集前にテストケースを提案する。
+5. テスト helper を実装する:
    - `resetDB(t)`
    - `newTestHandler(t)`
    - `doJSON(t, handler, method, path, body, cookies...)`
    - `loginAs(t, handler, user)`
    - `assertJSONGolden(t, path, got)`
    - `normalizeJSON(t, raw)`
-6. Add or update fixtures under `testdata/fixtures`.
-7. Add golden files under `testdata/golden`.
-8. Run `go test ./...`.
-9. Fix only test or testability issues. Do not refactor production code unless needed and explicitly justified.
+6. `testdata/fixtures` 配下に fixture を追加または更新する。
+7. `testdata/golden` 配下に golden file を追加する。
+8. `go test ./...` を実行する。
+9. テストまたは testability の問題のみ修正する。必要かつ明示的に正当化されない限り、本番コードはリファクタリングしない。
 
-## Golden File Policy
+## Golden File 方針
 
-Use golden files when the response is large or has many fields.
+レスポンスが大きい、またはフィールド数が多い場合は golden file を使う。
 
-Normalize unstable values before comparing:
-- timestamps
-- auto-increment IDs when not essential
-- session IDs
-- random tokens
-- generated UUIDs
-- request-specific values
+比較前に不安定な値を正規化する:
+- timestamp
+- 本質でない場合の auto-increment ID
+- session ID
+- random token
+- 生成された UUID
+- リクエスト固有の値
 
-If an expected value cannot be safely inferred, do not invent it. Prefer golden-file capture from the current implementation.
+expected value を安全に推論できない場合は、推測で作らない。現在の実装から golden file を取得する方式を優先する。
 
-## Output Format
+## 出力フォーマット
 
-Before making changes, output:
+変更前に、次を出力する:
 
-1. APIs discovered
-2. proposed test cases
-3. files to edit
-4. fixtures/golden files to add
-5. commands to run
+1. 発見した API
+2. 提案するテストケース
+3. 編集するファイル
+4. 追加する fixture / golden file
+5. 実行するコマンド
 
-Then implement when the user asks to proceed.
+ユーザーが進めるよう指示したら実装する。
