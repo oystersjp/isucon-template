@@ -1,5 +1,5 @@
 ---
-name: isucon-characterization-tests
+name: isucon-make-tests
 description: Create Go characterization tests for ISUCON apps to detect regressions before benchmarks. Use for refactoring safety, API compatibility, golden files, DB fixtures, and HTTP behavior tests.
 ---
 
