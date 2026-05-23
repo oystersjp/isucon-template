@@ -1,6 +1,6 @@
 # Reference (Go Functions)
 
-`Initialize` から呼ぶ最小構成の関数例。
+`Initialize` から呼ぶ最小構成。アプリ側の `bench_notify.go`（例: `go/bench_notify.go`）に配置する。
 
 ```go
 package main
@@ -8,11 +8,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -42,15 +43,9 @@ func benchEndDelaySec() int {
 	return n
 }
 
-func notifySlackAfter(delaySec int, text string) {
-	time.Sleep(time.Duration(delaySec) * time.Second)
-	notifySlack(text)
-}
-
 func notifySlack(text string) {
 	webhook := os.Getenv("SLACK_WEBHOOK_URL")
 	if webhook == "" {
-		log.Printf("skip slack notify: SLACK_WEBHOOK_URL is empty")
 		return
 	}
 
@@ -80,29 +75,29 @@ func notifySlack(text string) {
 	}
 }
 
-func notifyBenchStartAndEndHint() {
+func benchEndHintSlackText(delaySec int) string {
+	return fmt.Sprintf("<!here> ✅ ベンチマーク終了（目安） 開始から%d秒経過・計測終了想定", delaySec)
+}
+
+func notifyBenchEndHint() {
 	if !benchNotifyEnabled() {
-		log.Printf("skip slack notify: BENCH_NOTIFY_ENABLED is false")
 		return
 	}
 
-	host := os.Getenv("HOSTNAME")
-	now := time.Now().Format(time.RFC3339)
 	delaySec := benchEndDelaySec()
 
-	go notifySlack("[BENCH_START] access detected at " + now + " host=" + host)
-	go notifySlackAfter(
-		delaySec,
-		"[BENCH_END_HINT] "+strconv.Itoa(delaySec)+"s passed since access host="+host,
-	)
+	go func(delaySec int) {
+		time.Sleep(time.Duration(delaySec) * time.Second)
+		notifySlack(benchEndHintSlackText(delaySec))
+	}(delaySec)
 }
 ```
 
-`Initialize` 側では以下を追加する:
+初期化ハンドラ側:
 
 ```go
-func Initialize(...) {
-	notifyBenchStartAndEndHint()
+func postInitialize(w http.ResponseWriter, r *http.Request) {
+	notifyBenchEndHint()
 	// existing logic...
 }
 ```

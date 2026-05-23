@@ -1,46 +1,51 @@
 ---
 name: bench-slack-notify-init
-description: Add Slack notifications in Go Initialize functions using Incoming Webhook. Sends an immediate notification when benchmark access is detected and a delayed follow-up after N seconds (default 60) to signal benchmark completion timing. Use when users ask for benchmark start/end alerts, access-triggered notifications, or N-seconds-later Slack notifications.
+description: Add a one-line Slack end-hint notification in Go Initialize handlers via Incoming Webhook. After /initialize access, sends <!here> message N seconds later (default 60) indicating benchmark likely finished. No start notification. Use for bench end alerts or delayed Slack notifications on initialize.
 ---
 
 # Bench Slack Notify Init
 
 ## Purpose
 
-`Initialize` 関数に Slack 通知を追加し、次を実現する。
+`Initialize`（または同等の初期化ハンドラ）から、**ベンチ終了目安の Slack 通知を 1 行だけ**送る。
 
-- アクセス検知直後の通知（ベンチマーカ来訪）
-- アクセスから N 秒後の通知（ベンチ終了目安）
+- `/initialize` アクセスから N 秒後に 1 回通知（既定 60 秒）
+- **開始通知は送らない**
+- 文面は 1 行、`<!here>` でチャンネル通知
+- 時刻・ホスト名は文面に含めない
 
-既定の遅延は 60 秒。環境変数で上書き可能にする。通知自体も環境変数で ON/OFF できるようにする。
+遅延秒数と通知 ON/OFF は環境変数で制御する。
 
 ## Quick Start
 
-1. `Initialize` の先頭で通知トリガーを実行する。
-2. `notifySlack()` と `notifySlackAfter()` を実装する。
-3. `BENCH_NOTIFY_ENABLED` で通知 ON/OFF を制御する（未設定時 ON）。
-4. `BENCH_END_NOTIFY_AFTER_SEC` で遅延秒数 N を制御する（未設定時 60）。
-5. Slack Incoming Webhook URL は `SLACK_WEBHOOK_URL` から取得する。
+1. 初期化ハンドラの先頭で `notifyBenchEndHint()` を呼ぶ。
+2. `bench_notify.go` に `notifySlack()` / `notifyBenchEndHint()` を実装する。
+3. `BENCH_NOTIFY_ENABLED` で通知 ON/OFF（未設定時 ON）。
+4. `BENCH_END_NOTIFY_AFTER_SEC` で遅延秒数 N（未設定時 60）。
+5. `SLACK_WEBHOOK_URL` に Slack Incoming Webhook URL を設定する。
 
 ## Implementation Steps (Go)
 
 ### 1) 必要な環境変数
 
-- `SLACK_WEBHOOK_URL` (必須)
+- `SLACK_WEBHOOK_URL` (通知する場合は必須)
 - `BENCH_NOTIFY_ENABLED` (任意, 既定: `true`)
 - `BENCH_END_NOTIFY_AFTER_SEC` (任意, 既定: `60`)
-- `HOSTNAME` (任意, 通知文面に含める)
 
 ### 2) Initialize で通知を呼ぶ
 
-`Initialize` 内で以下を呼ぶ:
+初期化処理の**先頭**で `notifyBenchEndHint()` を呼ぶだけにする。
 
-- 即時通知: `go notifySlack("bench access detected ...")`
-- 遅延通知: `go notifySlackAfter(delaySec, "bench likely finished ...")`
+```go
+func postInitialize(w http.ResponseWriter, r *http.Request) {
+	notifyBenchEndHint()
+	// existing logic...
+}
+```
 
-通知の失敗で `Initialize` を落とさない。失敗はログ出力に留める。
+通知の失敗で初期化処理を落とさない。送信失敗時のみログに出す（スキップ時はログを出さない）。
 
-`BENCH_NOTIFY_ENABLED=false` のときは通知処理をスキップする。
+`BENCH_NOTIFY_ENABLED=false` のときは通知処理を行わない（ログも出さない）。
 
 ### 3) 通知 ON/OFF の解決
 
@@ -59,37 +64,40 @@ description: Add Slack notifications in Go Initialize functions using Incoming W
 
 ### 5) 非同期送信
 
-`Initialize` のレスポンス遅延を避けるため、通知送信は goroutine で行う。
+`Initialize` のレスポンス遅延を避けるため、`time.Sleep` と `notifySlack` は goroutine 内で行う。ハンドラ本体では待たない。
 
 ### 6) メッセージ構成
 
-最低限以下を含める:
+**1 行のみ**。改行・時刻・ホストは含めない。
 
-- 種別: `BENCH_START` / `BENCH_END_HINT`
-- 時刻: `time.Now().Format(time.RFC3339)`
-- ホスト: `HOSTNAME`（取得できれば）
-- 遅延秒数（後段通知）
+```
+<!here> ✅ ベンチマーク終了（目安） 開始から{N}秒経過・計測終了想定
+```
+
+- `<!here>` は Slack Incoming Webhook で `@here` 相当
+- `{N}` は `BENCH_END_NOTIFY_AFTER_SEC` の解決値
 
 ## References
 
 - 関数リファレンス: [reference.md](reference.md)
-- `Initialize` では `notifyBenchStartAndEndHint()` を呼ぶだけにする。
+- アプリ側に `bench_notify.go` を追加（例: `go/bench_notify.go`）
 
 ## Validation Checklist
 
-- [ ] `/initialize` へアクセスした直後に `BENCH_START` 通知が来る
-- [ ] N 秒後に `BENCH_END_HINT` 通知が来る
+- [ ] `/initialize` 直後には通知が来ない
+- [ ] N 秒後に 1 行の終了目安通知が来る（`<!here>` 含む）
 - [ ] `BENCH_END_NOTIFY_AFTER_SEC=10` で 10 秒後に来る
 - [ ] `BENCH_NOTIFY_ENABLED=false` で通知が送られない
-- [ ] `SLACK_WEBHOOK_URL` 未設定でもアプリが落ちない
-- [ ] 通知失敗時にログへ理由が出る
+- [ ] `SLACK_WEBHOOK_URL` 未設定でも initialize が正常完了する
+- [ ] Webhook 送信失敗時にログへ理由が出る
 
 ## Agent Behavior
 
 このスキルを使うとき、エージェントは次を守る:
 
 1. 既存の `Initialize` 実装を壊さず最小差分で追加する。
-2. 同期的な待機 (`time.Sleep`) をリクエスト本体で行わない。
-3. デフォルト値 60 秒を保持し、N 秒に一般化する。
-4. 環境変数で通知を ON/OFF できるようにする（既定 ON）。
-5. 通知送信失敗を致命エラーにしない。
+2. 開始通知・多行文面・時刻/ホスト表示は追加しない。
+3. 同期的な待機 (`time.Sleep`) をリクエスト本体で行わない。
+4. デフォルト遅延 60 秒を保持し、N 秒に一般化する。
+5. 環境変数で通知を ON/OFF できるようにする（既定 ON）。
+6. 通知送信失敗を致命エラーにしない。スキップ時は静かに return する。
