@@ -1,5 +1,28 @@
 # isucon-template
 
+## 初期セットアップ
+
+競技開始後、`/home/isucon` 直下にこのリポジトリを clone し、以下のスクリプトを実行します。
+
+```bash
+cd /home/isucon
+git clone <this-repo> isucon-template
+bash isucon-template/mybin/setup.sh
+```
+
+スクリプトは対話式で以下を順に処理します。
+
+1. **バックアップ** — `webapp` → `webapp_bk` にコピー
+2. **言語ディレクトリ選定** — `go` / `perl` / `ruby` / `python` / `node` / `rust` 等を自動検出し、使用言語を番号で選択。残りは削除確認
+3. **その他ファイル整理** — 残りのディレクトリ・ファイルを1件ずつ `[k]eep / [d]elete / [i]gnore` で選択
+4. **Makefile 設定** — `APPNAME`（systemd サービス名）とビルドコマンドを入力
+5. **ファイル移動** — `webapp` の中身をリポジトリ直下に移動
+6. **`.gitignore` 更新** — Step 3 で `[i]` を選んだ項目を追記
+7. **Makefile 書き換え** — 入力した `APPNAME` とビルドコマンドを反映
+8. **ディレクトリリネーム** — リポジトリを `webapp` にリネーム（元の構造に一致させる）
+
+完了後は `/home/isucon/webapp` がリポジトリになります。
+
 ## pprotein セットアップ
 
 pprotein サーバは別途用意済みです。計測対象サーバと pprotein サーバで必要な作業を以下にまとめます。
