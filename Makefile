@@ -38,3 +38,15 @@ start-services:
 	sudo systemctl start $(APPNAME)
 	sudo systemctl start nginx
 
+etc-sync/pull:
+	./mybin/etc-sync/etc-sync.sh pull
+
+etc-sync/deploy:
+	./mybin/etc-sync/etc-sync.sh deploy
+
+etc-sync/deploy/apply:
+	./mybin/etc-sync/etc-sync.sh deploy --apply
+
+etc-sync/diff:
+	./mybin/etc-sync/etc-sync.sh diff
+
