@@ -1,5 +1,64 @@
 # isucon-template
 
+## /etc 設定の git 管理 (etc-sync)
+
+複数台の `/etc` 配下の主要設定を `infra/<host>/etc/...` に収集し、このリポジトリで差分管理します。対象サーバと収集パスは `conf.yaml` に書きます。
+
+```yaml
+hosts:
+  s1: isucon-s1
+  s2: isucon-s2
+
+includes:
+  - /etc/sysctl.conf
+  - /etc/sysctl.d
+  - /etc/security/limits.conf
+  - /etc/hosts
+
+excludes:
+  - "*.bak"
+  - "*.sock"
+
+host_includes:
+  s1:
+    - /etc/nginx/nginx.conf
+    - /etc/mysql/mysql.conf.d/mysqld.cnf
+  s2:
+    - /etc/systemd/system
+    - /etc/nginx/sites-enabled
+
+host_excludes:
+  s1:
+    - "*.tmp"
+```
+
+- `hosts` のキーがリポジトリ内の保存先 `infra/<host>/etc/...` になります。
+- `hosts` の値は `ssh` コマンドで接続できるエイリアス、または `user@host` です。
+- `make etc-sync/*` は本番サーバーのどれか1台で実行する想定です。実行元サーバーから、自分自身を含む `hosts` の全接続先へ `ssh` できるようにしてください。
+- `includes` にはファイルとディレクトリのどちらも指定できます。例: `/etc/nginx/nginx.conf`、`/etc/mysql/mysql.conf.d/mysqld.cnf`、`/etc/systemd/system`。
+- `host_includes` / `host_excludes` は指定したホストにだけ追加適用されます。サーバごとに nginx だけ、mysql だけ、systemd だけ、のように管理対象を分けられます。
+- `deploy` も対象ホストの `includes` + `host_includes` に含まれるファイル/ディレクトリだけを反映します。
+- `conf.yaml` は shell で読むための限定形式です。YAML の入れ子、アンカー、複雑なクォートは扱いません。
+
+よく使う操作:
+
+```
+make etc-sync/pull          # 全ホストから infra/<host>/etc/... へ収集
+make etc-sync/diff          # 収集前の差分を dry-run で確認
+make etc-sync/deploy        # リポジトリから /etc への反映差分を dry-run で確認
+make etc-sync/deploy/apply  # 実際に /etc へ反映
+```
+
+特定ホストだけ操作する場合:
+
+```
+./mybin/etc-sync/etc-sync.sh pull s1
+./mybin/etc-sync/etc-sync.sh deploy s1
+./mybin/etc-sync/etc-sync.sh deploy --apply s1
+```
+
+`deploy` は事故防止のため既定で dry-run です。実反映には `--apply` を明示してください。`rsync` は remote 側で `sudo rsync` を使い、`--no-owner --no-group` を付けてローカルの所有者・グループ情報を `/etc` へ誤反映しないようにしています。
+
 ## pprotein セットアップ
 
 pprotein サーバは別途用意済みです。計測対象サーバと pprotein サーバで必要な作業を以下にまとめます。
