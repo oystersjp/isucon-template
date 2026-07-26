@@ -11,7 +11,7 @@ description: >-
 
 ## 手順
 
-1. log 取得と digest（ホスト未指定なら `isucon-s1`）。`/tmp/top-slow.log` が既にあっても必ず毎回再取得する:
+1. log 取得と pt-query-digest実行 (TARGET_HOSTは省略可能)
 
 ```bash
 bash .agents/skills/slow-query-kill/scripts/fetch-top-slow.bash [TARGET_HOST]
