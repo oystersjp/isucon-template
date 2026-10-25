@@ -2,6 +2,8 @@
 
 ## Go: app pprof (:19001)
 
+エージェントがアプリリポジトリへ PR を開くときの雛形。チャットに貼って終わりにしない。
+
 ```go
 import "github.com/kaz/pprotein/integration/standalone"
 

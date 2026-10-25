@@ -84,19 +84,24 @@ make etc-sync/deploy/apply  # 実際に /etc へ反映
 
 ## pprotein セットアップ
 
-pprotein サーバ（UI :9000）は構築済み前提です。ホスト設定と API 登録は **`mybin/pprotein/pprotein-setup.sh`** がやります。あなたが決めて埋め／変更するのは下の表だけです。
+pprotein サーバ（UI :9000）は構築済み前提です。
 
-### あなたがやること（ここだけ）
+| 担当 | やること |
+|------|----------|
+| **AI** | アプリの pprof (:19001) + Initialize webhook を入れて **PR を開く** |
+| **CLI** | nginx / mysql / agent / targets / alp / verify |
+| **あなた** | SG、値の決定、CLI 実行、**pprof PR のマージとデプロイ** |
+
+### あなたがやること
 
 | # | 作業 | 例・置き場 |
 |---|------|------------|
 | 1 | **SG** で pprotein → 各競技ホストの TCP **19000 / 19001** を許可 | AWS コンソール等（スクリプトは触らない） |
 | 2 | pprotein の URL を決める | `export PPROTEIN_URL=http://203.0.113.10:9000` |
-| 3 | 各ホストの **label と到達 IP** を決める（別 VPC なら Public） | `s1=203.0.113.11` のように `--host` に渡す |
-| 4 | アプリ pprof (:19001) があるホストを `--app-pprof` に書く | 無いホストは agent :19000 に落ちる |
-| 5 | alp 用 `matching_groups`（パラメータ付きルートの regex） | `--group` または `--groups-file` |
-| 6 | （任意）アプリに pprof + Initialize webhook を入れる | `.agents/skills/pprotein-setup/reference.md` |
-| 7 | 各競技ホストで CLI を実行し、手元から targets / alp を叩く | 下のコマンド |
+| 3 | 各ホストの **label と到達 IP** を決める（別 VPC なら Public） | `--host s1=203.0.113.11` |
+| 4 | alp 用 `matching_groups` | `--group`（AI が提案してよい） |
+| 5 | AI が開いた **pprof PR をマージ**し、競技ホストへデプロイ | PR マージ後に build / restart |
+| 6 | 各競技ホストで CLI を実行し、手元から targets / alp を叩く | 下のコマンド。`--app-pprof` は pprof を入れたホスト |
 
 ログパスが既定と違うときだけ環境変数を足す: `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG`。
 
