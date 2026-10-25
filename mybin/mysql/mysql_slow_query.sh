@@ -1,5 +1,6 @@
 #!/bin/sh -eu
 #
+# superseded for pprotein: use mybin/pprotein/pprotein-setup.sh mysql on|off
 # mysql_slow_query.sh
 #   1) init : 設定ファイルにスロークエリログの初期設定を追記
 #   2) on   : slow_query_log = ON に書き換え
