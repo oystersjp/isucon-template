@@ -202,3 +202,7 @@ sudo systemctl restart mysql
 
   ※バージョンやアーキテクチャは適宜読み替えてください。不要になった `/tmp/*.tar.gz` や展開物も削除して構いません。
 - pprotein UI の `setting > group/targets` に対象サーバの Private IP と `http://<target>:19000` を登録し、必要に応じて `httplog/config` も調整してください。
+
+### pprotein HTTP API
+
+計測結果（httplog / slowlog / pprof / memo）を UI を介さずに取得・操作する方法は [docs/pprotein-api.md](docs/pprotein-api.md) にまとめています。

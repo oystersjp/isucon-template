@@ -31,5 +31,8 @@ Lint every shell script with `shellcheck mybin/mysql/mysql_slow_query.sh` (and n
 ## Commit & Pull Request Guidelines
 History mixes Conventional Commit prefixes with concise summaries (for example, a `feat:` entry that adds `mybin` and still includes an emoji in the subject). Prefer `type: summary` (English or Japanese) plus optional emoji for clarity, and keep the subject under ~60 characters. Reference issues or benchmarks in the body, explain the failure signal, and attach logs or screenshots when behaviour changes. PR descriptions should outline impact, rollback steps, and any config touch points.
 
+## Reading Measurement Results (pprotein)
+When you need benchmark measurement results (alp/httplog, slp/slowlog, pprof, memos), read them from the pprotein HTTP API. See `docs/pprotein-api.md` for the base URL, endpoints, response formats, and caveats (e.g. aggregated TSV is served as `application/json`; do not call `GET /api/group/collect` just to read results).
+
 ## Ops & Configuration Tips
 `mybin` scripts call `sudo`, so run them from a shell with appropriate privileges and verify backups land next to the target (`mysqld.cnf.*.bak`). Track machine-specific overrides via configuration management instead of ad-hoc edits. Rotate `/var/log/mysql/mysql-slow.log` after long profiling sessions to prevent disk churn.
