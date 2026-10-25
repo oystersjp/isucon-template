@@ -1,12 +1,12 @@
 ---
 name: pprotein-setup
 description: >-
-  Set up pprotein profiling for any ISUCON contest end-to-end: discover hosts
-  and app layout, install pprotein-agent, enable DB slowlog, convert nginx/apache
-  access logs to LTSV, wire app pprof and initialize collect webhook, open
-  firewall/SG, register group/targets and alp matching_groups. Use when the user
-  asks for pprotein setup, group/targets, httplog/config, alp config, or agent
-  install on competition servers.
+  Prepare pprotein profiling for any ISUCON contest: discover hosts and app
+  layout from the repo, draft app pprof/webhook patches, generate group/targets
+  and alp matching_groups, and hand the user a copy-paste server runbook.
+  Server SSH and AWS SG changes are out of scope unless the user explicitly
+  asks. Use when the user asks for pprotein setup, group/targets, httplog/config,
+  alp config, or agent install instructions.
 ---
 
 # pprotein Setup (any ISUCON)
@@ -19,10 +19,23 @@ description: >-
 1. `group/targets` JSON（対象ホストごと）
 2. alp `httplog/config`（`matching_groups`）
 3. Webhook URL: `http://<pprotein-host>:9000/api/group/collect`
+4. **サーバー手動ランブック**（agent / slowlog / LTSV / 再起動のコピペ手順）
 
 pprotein 本体（UI / alp / slp）は構築済み前提。未構築ならこのスキルでは扱わない。
 
-問題固有のパス・サービス名・言語は **推測せず、リポジトリとサーバを調べて決める**。
+問題固有のパス・サービス名・言語は **推測せず、リポジトリを調べて決める**。サーバ上の事実が必要ならユーザーに確認する（Discover で SSH しない）。
+
+## Ownership (誰が何をするか)
+
+| 担当 | やること |
+|------|----------|
+| **エージェント** | リポジトリ調査、アプリ差分の下書き、targets / matching_groups 生成、手動ランブック作成 |
+| **ユーザー（手動）** | 競技サーバへの SSH、agent 導入、slowlog / nginx、デプロイ・再起動、ネットワーク許可 |
+
+- サーバー操作は **ユーザー手動が既定**。エージェントは手順とコマンドを渡す。
+- SSH 実行は、ユーザーが明示したときだけ。
+- **AWS SG / クラウド FW のルール追加・変更はしない**（依頼されてもやらない）。必要なポートはランブックに書くだけ。
+- サーバ上で **git branch を勝手に変えない**（`checkout` / `switch` / ブランチを変える `pull` 禁止）。現在のブランチのまま作業する。ブランチ変更が必要ならユーザーに依頼する。
 
 ## Architecture (default)
 
@@ -36,67 +49,36 @@ pprotein 本体（UI / alp / slp）は構築済み前提。未構築ならこの
 - 古い README の Echo `pkg/middleware` / POST webhook 例は現行では使わない。
 - Collect webhook は **GET** `/api/group/collect`。
 
-## Phase 0 — Discover (必須・最初に行う)
+## Phase 0 — Discover（リポジトリ中心）
 
-不明ならユーザーに確認。分かった値を以降で使う。
+不明ならユーザーに確認。分かった値を以降で使う。**この段階では SSH しない。**
 
-1. **対象ホスト**: SSH alias、Public IP（別 VPC なら必須）、Private IP
-2. **pprotein**: SSH alias / base URL（例 `http://x.x.x.x:9000`）
+1. **対象ホスト**: SSH alias、Public IP（別 VPC なら必須）、Private IP（ユーザーから）
+2. **pprotein**: base URL（例 `http://x.x.x.x:9000`）
 3. **アプリ配置**: リポジトリ root、`webapp` 相当のパス、実装言語（Go / 他）
 4. **Initialize エンドポイント**: パスとハンドラ関数名（`/initialize`, `/api/initialize` など）
 5. **プロセス管理**: systemd unit 名、バイナリパス、環境変数ファイル（`env.sh` 等）
-6. **ログパス**: nginx/apache access log、MySQL/MariaDB/PostgreSQL slow log
-7. **補助スクリプト有無**: `mybin/pprotein/setup.sh`, `mybin/mysql/mysql_slow_query.sh` など（無ければ同等手順を手で行う）
-8. **DB 種別**: MySQL 系 / Postgres 等（slowlog の有効化方法が変わる）
+6. **ログパス**: nginx/apache access log、MySQL/MariaDB/PostgreSQL slow log（コード・docs・既存 mybin から推定し、不明なら確認）
+7. **補助スクリプト有無**: `mybin/pprotein/setup.sh`, `mybin/mysql/mysql_slow_query.sh` など
+8. **DB 種別**: MySQL 系 / Postgres 等
 
 ## Workflow
 
 ```
-- [ ] 0. Discover（ホスト・言語・unit・ログ・Initialize）
-- [ ] 1. agent install（全対象ホスト）
-- [ ] 2. DB slowlog ON
-- [ ] 3. アクセスログを LTSV 化 + reload
-- [ ] 4. SG/firewall: pprotein → 19000/19001
-- [ ] 5. アプリ: pprof(:19001) + Initialize webhook + env
-- [ ] 6. ビルド / サービス再起動
-- [ ] 7. group/targets 登録
-- [ ] 8. alp matching_groups 登録（ルートから生成）
-- [ ] 9. 疎通確認 → 最終成果物を提示
+- [ ] 0. Discover（リポジトリ + ユーザー確認。SSH しない）
+- [ ] 1. アプリ差分下書き: pprof(:19001) + Initialize webhook + env
+- [ ] 2. group/targets 生成
+- [ ] 3. alp matching_groups 生成（ルートから）
+- [ ] 4. 手動ランブック作成（agent / slowlog / LTSV / 再起動 / 疎通 curl）
+- [ ] 5. ネットワーク前提を注記のみ（SG は触らない）
+- [ ] 6. 最終成果物を提示 → ユーザーがサーバ作業
 ```
 
-### 1) Agent
+ユーザーが「サーバでやって」と明示した場合のみ、ランブックの該当ステップを SSH で実行してよい。その場合も **branch 変更禁止・SG 変更禁止** は維持する。
 
-補助スクリプトがある場合:
+### 1) App instrumentation（エージェントが差分を用意）
 
-```sh
-cd <repo-root>   # 例: ~/webapp
-sudo DEBIAN_FRONTEND=noninteractive ./mybin/pprotein/setup.sh install
-```
-
-無い場合は pprotein release の `pprotein-agent` を配置し、systemd で `:19000` 起動。環境変数:
-
-- `PPROTEIN_HTTPLOG`（既定 `/var/log/nginx/access.log`）
-- `PPROTEIN_SLOWLOG`（既定 `/var/log/mysql/mysql-slow.log` — 実パスに合わせる）
-- `PPROTEIN_GIT_REPOSITORY`（リポジトリ root）
-
-`mybin` が一部ホストに無いときは、あるホストから `rsync` するか、リポジトリを揃える。
-
-### 2) DB slowlog
-
-- **MySQL/MariaDB**: リポジトリの helper があればそれを使う。無ければ `slow_query_log=ON` と log file を設定して restart。
-- **PostgreSQL** 等: 問題の標準手順に従う（`log_min_duration_statement` など）。agent の `PPROTEIN_SLOWLOG` を実ファイルに合わせる。
-
-### 3) Access log → LTSV
-
-リバースプロキシ（多くは nginx）の access log を alp 向け LTSV にする。フォーマットは [reference.md](reference.md)。`nginx -t` 後に reload。apache の場合も同等の LTSV に揃える。
-
-### 4) Network
-
-pprotein の IP から各競技サーバの **TCP 19000 / 19001** を許可（AWS SG / ufw / security group）。
-
-### 5) App instrumentation
-
-言語に応じて最小差分で入れる。詳細は [reference.md](reference.md)。
+言語に応じて最小差分。詳細は [reference.md](reference.md)。
 
 **Go（標準）:**
 1. `go standalone.Integrate(":19001")` をアプリ起動と別に goroutine で
@@ -105,11 +87,37 @@ pprotein の IP から各競技サーバの **TCP 19000 / 19001** を許可（AW
 
 **Go 以外:**
 - アプリプロセスで pprof 相当を `:19001` に出せなければ、targets の `pprof` は agent `:19000` に落とす（アプリ CPU ではない旨を注記）
-- Initialize 相当から webhook GET を非同期で叩く（言語の HTTP client で可）
+- Initialize 相当から webhook GET を非同期で叩く
 
 既存の Initialize 付随処理（Slack 通知など）は消さず併存させる。
 
-### 6) group/targets
+デプロイ・ビルド・サービス再起動はランブックに書き、ユーザーが実行する。
+
+### 2) Manual runbook（ユーザー向け）
+
+ホストごとにコピペ可能なコマンド列を出す。含めるもの:
+
+1. **agent install** — helper があれば `sudo DEBIAN_FRONTEND=noninteractive ./mybin/pprotein/setup.sh install`。無ければ [reference.md](reference.md) の手動導入。env: `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG` / `PPROTEIN_GIT_REPOSITORY`
+2. **DB slowlog ON** — MySQL helper または同等設定
+3. **アクセスログ LTSV** + `nginx -t` + reload（フォーマットは reference）
+4. **アプリ反映** — 現在ブランチのまま pull/build/restart（branch 切替コマンドは書かない。切替が必要なら「現ブランチを確認してから…」とユーザー判断に委ねる）
+5. **疎通** — 下記 Verify の curl（`--max-time` 必須）
+
+ランブック冒頭に固定注記:
+
+```
+- git checkout / switch しない（現在のブランチのまま）
+- AWS SG は変更しない（19000/19001 が未許可なら人が別途対応）
+```
+
+### 3) Network（注記のみ）
+
+pprotein → 各競技サーバの **TCP 19000 / 19001** が届く必要がある。
+
+- エージェントは SG / ufw / クラウド FW を **追加・変更しない**
+- 未達なら「19000/19001 を pprotein から許可してください」と伝えるだけ
+
+### 4) group/targets
 
 ホスト Label は invent せず、discover した名前（`s1` / `isucon-1` 等）を使う。各ホスト 3 行（Duration 既定 10）:
 
@@ -121,19 +129,20 @@ pprotein の IP から各競技サーバの **TCP 19000 / 19001** を許可（AW
 
 `<reachable-ip>` は pprotein から届くアドレス（別 VPC なら Public）。
 
-### 7) alp matching_groups
+登録は pprotein UI または API。ローカルから API を叩けるならエージェントが登録してよい。サーバ SSH は不要なら使わない。
+
+### 5) alp matching_groups
 
 **その問題のルート定義から生成する。** 固定の問題別リストをコピペしない。
 
-手順:
 1. ルータ / OpenAPI / フレームワークのルート一覧を収集
 2. パスパラメータ（`:id`, `{id}`, `<id>` 等）を含むものだけ残す
 3. 可変セグメントを `[^/]+` 等に置換した regex を `matching_groups` にする
-4. クエリ文字列は通常マッチ対象外（uri の path 側）
+4. クエリ文字列は通常マッチ対象外
 
 生成ルール・例は [reference.md](reference.md)。
 
-### 8) Verify
+### 6) Verify（ランブックに含める）
 
 tail 系はブロックし得るので **`--max-time` 必須**:
 
@@ -144,16 +153,19 @@ curl -s -o /dev/null -w "%{http_code}\n" --connect-timeout 3 --max-time 3 \
   http://<ip>:19001/debug/pprof/
 ```
 
-pprotein ホストから全 target IP で 200 を確認。
+pprotein ホストから全 target IP で 200 を確認（ユーザーが実行）。
 
 ## Agent Behavior
 
 1. 問題固有の API パス・unit 名・ディレクトリをハードコードしない。必ず Discover。
-2. 最終回答に **group/targets**・**matching_groups**・**Webhook URL**・使った前提（ホスト/IP）を含める。
+2. 最終回答に **group/targets**・**matching_groups**・**Webhook URL**・**手動ランブック**・使った前提（ホスト/IP）を含める。
 3. Public IP をデフォルト（Private 到達確認時のみ Private）。
 4. pprotein 本体の新規構築はしない。
 5. 既存 Initialize 周辺を破壊しない。
 6. 秘密情報をログや PR に出さない。
+7. **SG / クラウド FW を変更しない。** 必要ポートは文章で伝えるだけ。
+8. **サーバ SSH はユーザー明示時のみ。** 既定はランブック渡し。
+9. **サーバ上で git branch を変えない。** 変更が必要ならユーザーに依頼する。
 
 ## References
 
