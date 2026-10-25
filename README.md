@@ -88,20 +88,22 @@ pprotein サーバ（UI :9000）は構築済み前提です。
 
 | 担当 | やること |
 |------|----------|
-| **AI** | アプリの pprof (:19001) + Initialize webhook を入れて **PR を開く** |
-| **CLI** | nginx / mysql / agent / targets / alp / verify |
-| **あなた** | SG、値の決定、CLI 実行、**pprof PR のマージとデプロイ** |
+| **あなた → AI に指示** | **Go だけ**（pprof :19001 + Initialize webhook）。指示後に AI が書いて PR を開く |
+| **CLI** | nginx / mysql / agent / targets / alp / verify（ホスト conf は人がコマンド実行） |
+| **あなた** | SG、値の決定、CLI 実行、Go PR のマージとデプロイ |
+
+Go 以外（nginx.conf や mysqld.cnf）は AI に書かせない。`pprotein-setup.sh` に任せる。
 
 ### あなたがやること
 
 | # | 作業 | 例・置き場 |
 |---|------|------------|
-| 1 | **SG** で pprotein → 各競技ホストの TCP **19000 / 19001** を許可 | AWS コンソール等（スクリプトは触らない） |
+| 1 | **SG** で pprotein → 各競技ホストの TCP **19000 / 19001** を許可 | AWS コンソール等 |
 | 2 | pprotein の URL を決める | `export PPROTEIN_URL=http://203.0.113.10:9000` |
-| 3 | 各ホストの **label と到達 IP** を決める（別 VPC なら Public） | `--host s1=203.0.113.11` |
+| 3 | 各ホストの **label と到達 IP** | `--host s1=203.0.113.11` |
 | 4 | alp 用 `matching_groups` | `--group`（AI が提案してよい） |
-| 5 | AI が開いた **pprof PR をマージ**し、競技ホストへデプロイ | PR マージ後に build / restart |
-| 6 | 各競技ホストで CLI を実行し、手元から targets / alp を叩く | 下のコマンド。`--app-pprof` は pprof を入れたホスト |
+| 5 | AI に Go 書き換えを指示し、できた **PR をマージしてデプロイ** | 「pprof 入れて」など |
+| 6 | 各競技ホストで CLI を実行し、手元から targets / alp | `--app-pprof` は pprof を入れたホスト |
 
 ログパスが既定と違うときだけ環境変数を足す: `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG`。
 
