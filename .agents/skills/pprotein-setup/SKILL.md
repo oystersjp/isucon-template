@@ -17,6 +17,16 @@ description: >-
 
 **ホスト設定と API 登録はコマンドで行う。** AI がコピペランブックを長々と書かない。
 
+最終回答では、ユーザーが埋める値を先に表で出す（空欄を残さない）:
+
+| ユーザー作業 | 値 |
+|--------------|-----|
+| SG 19000/19001（pprotein→競技ホスト） | 手動。CLI は触らない |
+| `PPROTEIN_URL` | `http://…:9000` |
+| `--host label=ip` | 到達可能な IP（既定 Public） |
+| `--app-pprof` | :19001 がある label |
+| `alp --group` | パラメータ付きルートの regex |
+
 ```sh
 # 各競技ホスト上
 sudo ./mybin/pprotein/pprotein-setup.sh nginx on
@@ -30,9 +40,8 @@ export PPROTEIN_URL=http://<pprotein-host>:9000
 ./mybin/pprotein/pprotein-setup.sh alp --group '^/api/items/[^/]+$'
 ```
 
-**エージェントがやること:** Discover、アプリ差分の下書き（pprof / webhook）、上記コマンドに埋める IP・label・matching_groups の提案。
-**ユーザーがやること:** SSH でコマンド実行、**AWS SG で 19000/19001 を手動許可**、デプロイ・再起動。
-
+**エージェントがやること:** Discover、上表の具体値の提案、必要ならアプリ差分下書き。
+**ユーザーがやること:** SG 手動、SSH、CLI 実行、デプロイ・再起動。
 ## Ownership
 
 | 担当 | やること |

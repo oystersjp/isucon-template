@@ -84,44 +84,46 @@ make etc-sync/deploy/apply  # 実際に /etc へ反映
 
 ## pprotein セットアップ
 
-pprotein サーバ（UI :9000）は構築済み前提です。競技ホストの準備と targets / alp 登録は **`mybin/pprotein/pprotein-setup.sh`** で行います。AWS SG の 19000/19001 許可は人が手動で行います（スクリプトは触りません）。
+pprotein サーバ（UI :9000）は構築済み前提です。ホスト設定と API 登録は **`mybin/pprotein/pprotein-setup.sh`** がやります。あなたが決めて埋め／変更するのは下の表だけです。
 
-### 競技ホスト上
+### あなたがやること（ここだけ）
+
+| # | 作業 | 例・置き場 |
+|---|------|------------|
+| 1 | **SG** で pprotein → 各競技ホストの TCP **19000 / 19001** を許可 | AWS コンソール等（スクリプトは触らない） |
+| 2 | pprotein の URL を決める | `export PPROTEIN_URL=http://203.0.113.10:9000` |
+| 3 | 各ホストの **label と到達 IP** を決める（別 VPC なら Public） | `s1=203.0.113.11` のように `--host` に渡す |
+| 4 | アプリ pprof (:19001) があるホストを `--app-pprof` に書く | 無いホストは agent :19000 に落ちる |
+| 5 | alp 用 `matching_groups`（パラメータ付きルートの regex） | `--group` または `--groups-file` |
+| 6 | （任意）アプリに pprof + Initialize webhook を入れる | `.agents/skills/pprotein-setup/reference.md` |
+| 7 | 各競技ホストで CLI を実行し、手元から targets / alp を叩く | 下のコマンド |
+
+ログパスが既定と違うときだけ環境変数を足す: `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG`。
+
+### 競技ホスト上（コマンドはそのまま）
 
 ```sh
 cd /path/to/isucon-template
-sudo ./mybin/pprotein/pprotein-setup.sh nginx on    # LTSV access_log
-sudo ./mybin/pprotein/pprotein-setup.sh mysql on    # slow_query_log
+sudo ./mybin/pprotein/pprotein-setup.sh nginx on
+sudo ./mybin/pprotein/pprotein-setup.sh mysql on
 sudo ./mybin/pprotein/pprotein-setup.sh agent install
 ./mybin/pprotein/pprotein-setup.sh verify
 ```
 
-- `agent install` は内部で `setup.sh install` を呼びます（graphviz / agent / systemd / ACL）。
-- ログパスが違うときは `PPROTEIN_HTTPLOG` / `PPROTEIN_SLOWLOG` を合わせて指定します。
-- 最終ベンチ前にログを止める例: `sudo ./mybin/pprotein/pprotein-setup.sh nginx off`
+最終ベンチ前にログを止める例: `sudo ./mybin/pprotein/pprotein-setup.sh nginx off`
 
-### pprotein API（手元や到達できるマシン）
+### 手元から API 登録（<> を自分の値に置換）
 
 ```sh
-export PPROTEIN_URL=http://<pprotein-host>:9000
-./mybin/pprotein/pprotein-setup.sh targets --host s1=<ip> --host s2=<ip> --app-pprof s1
+export PPROTEIN_URL=http://<pproteinのIP>:9000
+./mybin/pprotein/pprotein-setup.sh targets \
+  --host s1=<競技ホスト1のIP> \
+  --host s2=<競技ホスト2のIP> \
+  --app-pprof s1
 ./mybin/pprotein/pprotein-setup.sh alp --group '^/api/items/[^/]+$'
+./mybin/pprotein/pprotein-setup.sh verify <競技ホスト1のIP> <競技ホスト2のIP>
 ```
 
-Webhook（Initialize から GET）: `http://<pprotein-host>:9000/api/group/collect`
+Webhook（Initialize から GET）: `${PPROTEIN_URL}/api/group/collect`
 
-### アプリ側（Go）
-
-`github.com/kaz/pprotein/integration/standalone` で `:19001` を出し、Initialize 先頭から上記 webhook を非同期 GET します。詳細は `.agents/skills/pprotein-setup/reference.md`。古い Echo middleware / POST `:19000/webhook` 例は使いません。
-
-### pprotein サーバ上の alp / slp
-
-未導入なら pprotein ホストで alp / slp を入れる（バージョンは適宜読み替え）:
-
-```sh
-ALP_VERSION=1.0.21 ALP_ARCH=linux_amd64
-curl -fsSL "https://github.com/tkuchiki/alp/releases/download/v${ALP_VERSION}/alp_${ALP_VERSION}_${ALP_ARCH}.tar.gz" -o /tmp/alp.tar.gz
-tar -xzf /tmp/alp.tar.gz -C /tmp && sudo install -m 0755 /tmp/alp /usr/local/bin/alp
-```
-
-targets と httplog/config は UI でも登録できますが、通常は上記 `pprotein-setup.sh targets` / `alp` を使います。
+`targets` の POST はリスト全体を置き換えます。UI で足した行も消えます。
