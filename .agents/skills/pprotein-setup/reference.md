@@ -2,6 +2,8 @@
 
 ## Go: app pprof (:19001)
 
+ユーザーが Go 書き換えを指示したあと、エージェントが PR を開くときの雛形。チャットに貼って終わりにしない。ホストの nginx/mysql 設定はここではなく `pprotein-setup.sh`。
+
 ```go
 import "github.com/kaz/pprotein/integration/standalone"
 
@@ -141,5 +143,6 @@ API: GET/POST `/api/httplog/config`
 ## Connectivity pitfalls
 
 - `/debug/log/httplog` and `/debug/log/slowlog` may hang under curl → probe `/debug/pprof/` with `--max-time 3`
-- Cross-VPC: use Public IPs in targets and open SG
-- UFW inactive ≠ cloud SG open
+- Cross-VPC: use Public IPs in targets; TCP 19000/19001 must already reach from pprotein (agent does **not** open SG)
+- UFW inactive ≠ cloud SG open — if probes fail, tell the user; do not add SG rules
+- On competition hosts: stay on the current git branch; never `checkout` / `switch` unless the user asks

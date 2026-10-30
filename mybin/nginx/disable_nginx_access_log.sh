@@ -1,7 +1,4 @@
-#!/bin/bash -eu
-
-NGINX_CONF="/etc/nginx/nginx.conf"
-
-sudo sed -i 's#^[[:space:]]*access_log[[:space:]].*#access_log off;#' "$NGINX_CONF"
-
-sudo nginx -t && sudo systemctl reload nginx
+#!/bin/sh -eu
+# superseded: use mybin/pprotein/pprotein-setup.sh nginx off
+echo "deprecated: use ./mybin/pprotein/pprotein-setup.sh nginx off" >&2
+exit 1
