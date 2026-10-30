@@ -134,3 +134,7 @@ export PPROTEIN_URL=http://<pproteinのIP>:9000
 Webhook（Initialize から GET）: `${PPROTEIN_URL}/api/group/collect`
 
 `targets` の POST はリスト全体を置き換えます。UI で足した行も消えます。
+
+### pprotein HTTP API
+
+計測結果（httplog / slowlog / pprof / memo）を UI を介さずに取得・操作する方法は [docs/pprotein-api.md](docs/pprotein-api.md) にまとめています。

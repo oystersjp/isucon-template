@@ -50,3 +50,7 @@ etc-sync/deploy/apply:
 etc-sync/diff:
 	./mybin/etc-sync/etc-sync.sh diff
 
+
+# 録画・再生で変更を20秒前後で確かめる (.agents/skills/isubench/SKILL.md)
+isubench/%:
+	./mybin/isubench/isubench.sh $*
